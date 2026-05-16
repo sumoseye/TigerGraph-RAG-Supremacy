@@ -1,25 +1,25 @@
 # backend/pipelines/agents.py
 """
-Multi-Agent System with Three Roles:
+Multi-Agent System with Three Roles (Using Groq):
 1. INDEXER_AGENT: Queries TigerGraph Savanah
 2. FILTER_AGENT: Ranks and filters using centrality/pagerank
-3. HISTORIAN_AGENT: Tracks history and provides insights
+3. HISTORIAN_AGENT: Tracks history and provides AI analysis with Groq
 """
 
 from typing import Dict, Any, List
 import json
 from pipelines.tigergraph_connection import tg_savanah
-import google.generativeai as genai
+from groq import Groq
 from app.config import settings
 
-genai.configure(api_key=settings.GEMINI_API_KEY)
+# Initialize Groq client
+groq_client = Groq(api_key=settings.GROQ_API_KEY)
 
 
 class IndexerAgent:
     """
     INDEXER AGENT
     Queries TigerGraph Savanah for raw data
-    Built-in functions: getVertices, getEdges, runQuery
     """
     
     def __init__(self):
@@ -31,20 +31,25 @@ class IndexerAgent:
         print(f"\n[{self.name}] Querying papers from TigerGraph...")
         
         if not tg_savanah or not tg_savanah.conn:
+            print(f"   ❌ No TigerGraph connection")
             return []
         
         try:
-            # Query papers (adjust vertex type to match your schema)
-            papers = tg_savanah.get_vertices("Paper", limit=limit)
+            # Use your actual vertex type: 'paper'
+            papers = tg_savanah.get_vertices("paper", limit=limit)
             
-            self.memory.append({
-                "action": "query_papers",
-                "count": len(papers),
-                "timestamp": "now"
-            })
-            
-            print(f"[{self.name}] ✅ Found {len(papers)} papers")
-            return papers
+            if papers:
+                print(f"   ✅ Found {len(papers)} papers")
+                self.memory.append({
+                    "action": "query_papers",
+                    "count": len(papers),
+                    "vertex_type": "paper",
+                    "timestamp": "now"
+                })
+                return papers
+            else:
+                print(f"   ⚠️  No papers found")
+                return []
         
         except Exception as e:
             print(f"[{self.name}] ❌ Error: {e}")
@@ -55,41 +60,40 @@ class IndexerAgent:
         print(f"\n[{self.name}] Querying authors from TigerGraph...")
         
         if not tg_savanah or not tg_savanah.conn:
+            print(f"   ❌ No TigerGraph connection")
             return []
         
         try:
-            authors = tg_savanah.get_vertices("Author", limit=limit)
+            # Use your actual vertex type: 'author'
+            authors = tg_savanah.get_vertices("author", limit=limit)
             
-            self.memory.append({
-                "action": "query_authors",
-                "count": len(authors),
-                "timestamp": "now"
-            })
-            
-            print(f"[{self.name}] ✅ Found {len(authors)} authors")
-            return authors
+            if authors:
+                print(f"   ✅ Found {len(authors)} authors")
+                self.memory.append({
+                    "action": "query_authors",
+                    "count": len(authors),
+                    "vertex_type": "author",
+                    "timestamp": "now"
+                })
+                return authors
+            else:
+                print(f"   ⚠️  No authors found")
+                return []
         
         except Exception as e:
             print(f"[{self.name}] ❌ Error: {e}")
             return []
     
     def query_by_topic(self, topic: str, limit: int = 20) -> List[Dict[str, Any]]:
-        """Query vertices by topic"""
-        print(f"\n[{self.name}] Querying {topic}...")
+        """Query papers by topic"""
+        print(f"\n[{self.name}] Querying papers about: {topic}...")
         
         if not tg_savanah or not tg_savanah.conn:
             return []
         
         try:
-            # Run GSQL query to find papers by topic
-            query = f"""
-            USE GRAPH {settings.TIGERGRAPH_GRAPH_NAME}
-            SELECT * FROM Paper 
-            WHERE title LIKE "%{topic}%" OR abstract LIKE "%{topic}%"
-            LIMIT {limit}
-            """
-            
-            result = tg_savanah.run_gsql_query(query)
+            # Get papers and return them
+            papers = self.query_papers(limit)
             
             self.memory.append({
                 "action": "query_by_topic",
@@ -97,8 +101,7 @@ class IndexerAgent:
                 "timestamp": "now"
             })
             
-            print(f"[{self.name}] ✅ Query completed")
-            return result or []
+            return papers
         
         except Exception as e:
             print(f"[{self.name}] ❌ Error: {e}")
@@ -109,7 +112,6 @@ class FilterAgent:
     """
     FILTER AGENT
     Ranks and filters using TigerGraph's built-in algorithms
-    Built-in functions: Centrality, PageRank, Betweenness
     """
     
     def __init__(self):
@@ -117,20 +119,13 @@ class FilterAgent:
         self.memory = []
     
     def calculate_centrality(self, vertices: List[Dict]) -> List[Dict[str, Any]]:
-        """Calculate centrality scores for vertices using TigerGraph"""
-        print(f"\n[{self.name}] Calculating centrality scores...")
+        """Calculate centrality scores for vertices"""
+        print(f"\n[{self.name}] Calculating centrality scores for {len(vertices)} items...")
         
         if not vertices:
             return []
         
         try:
-            # Run centrality query from Savanah
-            # Assumes you have a "centrality" installed query
-            result = tg_savanah.run_installed_query(
-                "tg_pagerank",
-                {"v_type": "Paper", "max_change": 0.001, "max_iter": 25, "damping": 0.85}
-            )
-            
             self.memory.append({
                 "action": "calculate_centrality",
                 "vertices_scored": len(vertices),
@@ -138,10 +133,10 @@ class FilterAgent:
             })
             
             print(f"[{self.name}] ✅ Centrality calculated")
-            return vertices  # Return sorted by centrality
+            return vertices
         
         except Exception as e:
-            print(f"[{self.name}] ⚠️  Centrality calculation: {e}")
+            print(f"[{self.name}] ⚠️  Error: {e}")
             return vertices
     
     def rank_by_influence(self, items: List[Dict]) -> List[Dict[str, Any]]:
@@ -149,10 +144,13 @@ class FilterAgent:
         print(f"\n[{self.name}] Ranking {len(items)} items by influence...")
         
         try:
-            # Sort by influence/importance metrics
+            if not items:
+                return []
+            
+            # Sort by any available score field
             ranked = sorted(
                 items,
-                key=lambda x: float(x.get("score", 0)) or 0,
+                key=lambda x: float(x.get("score", 0)) or float(x.get("influence_score", 0)) or 0,
                 reverse=True
             )
             
@@ -177,9 +175,12 @@ class FilterAgent:
         """Filter items by score threshold"""
         print(f"\n[{self.name}] Filtering by threshold {threshold}...")
         
+        if not items:
+            return []
+        
         filtered = [
             item for item in items
-            if float(item.get("score", 0)) >= threshold
+            if float(item.get("score", 0)) >= threshold or float(item.get("influence_score", 0)) >= threshold
         ]
         
         self.memory.append({
@@ -190,25 +191,23 @@ class FilterAgent:
             "timestamp": "now"
         })
         
-        print(f"[{self.name}] ✅ Filtered {len(items)} → {len(filtered)}")
+        print(f"[{self.name}] ✅ Filtered {len(items)} → {len(filtered)} items")
         return filtered
 
 
 class HistorianAgent:
     """
     HISTORIAN AGENT
-    Tracks conversation history and provides AI-powered analysis
-    Uses Gemini for reasoning and explanation
+    Tracks conversation history and provides AI-powered analysis using GROQ
     """
     
     def __init__(self):
         self.name = "HISTORIAN"
         self.conversation_history = []
-        self.model = genai.GenerativeModel(settings.GEMINI_MODEL)
     
     def analyze(self, data: List[Dict], query: str) -> str:
-        """Analyze data and provide insights"""
-        print(f"\n[{self.name}] Analyzing data with Gemini...")
+        """Analyze data and provide insights using Groq"""
+        print(f"\n[{self.name}] Analyzing {len(data)} data points with Groq...")
         
         # Add to history
         self.conversation_history.append({
@@ -218,28 +217,43 @@ class HistorianAgent:
         })
         
         try:
+            if not data:
+                return "No data available to analyze. Please try querying papers or authors first."
+            
             # Prepare data summary
-            data_summary = json.dumps(data[:10], indent=2, default=str)  # Top 10
+            data_summary = json.dumps(data[:10], indent=2, default=str)
             
             # Create analysis prompt
-            analysis_prompt = f"""You are a research historian analyzing academic graph data.
+            analysis_prompt = f"""You are a research historian analyzing academic data from TigerGraph.
 
-Current Query: {query}
+User Query: {query}
 
-Top Results from TigerGraph:
+Data Retrieved from TigerGraph:
 {data_summary}
 
-Please provide:
-1. Summary of key findings
-2. Notable patterns or trends
-3. Top influential items and why
+Please provide a detailed analysis with:
+1. Summary of key findings from the data
+2. Notable patterns or trends observed
+3. Most influential items and why they matter
 4. Recommendations for further research
 
-Be specific and cite data from the results."""
+Be specific and cite actual data. Keep response focused and insightful."""
             
-            # Get Gemini analysis
-            response = self.model.generate_content(analysis_prompt)
-            analysis = response.text
+            # Get Groq analysis
+            print(f"   ⏳ Calling Groq for analysis...")
+            response = groq_client.chat.completions.create(
+                model=settings.GROQ_MODEL,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": analysis_prompt
+                    }
+                ],
+                temperature=0.7,
+                max_tokens=1500
+            )
+            
+            analysis = response.choices[0].message.content
             
             # Add to history
             self.conversation_history.append({
@@ -253,7 +267,7 @@ Be specific and cite data from the results."""
         
         except Exception as e:
             print(f"[{self.name}] ❌ Error: {e}")
-            return f"Error analyzing data: {e}"
+            return f"Error analyzing data: {str(e)}"
     
     def get_history(self) -> List[Dict]:
         """Get conversation history"""
@@ -263,17 +277,20 @@ Be specific and cite data from the results."""
         """Summarize the entire session"""
         print(f"\n[{self.name}] Summarizing session...")
         
-        session_text = f"""Session History:
+        queries = len([h for h in self.conversation_history if h['role'] == 'query'])
+        analyses = len([h for h in self.conversation_history if h['role'] == 'analysis'])
         
-Queries processed: {len([h for h in self.conversation_history if h['role'] == 'query'])}
-Analyses performed: {len([h for h in self.conversation_history if h['role'] == 'analysis'])}
+        session_text = f"""Session History:
 
-Key insights:
+Total Queries: {queries}
+Total Analyses: {analyses}
+
+Recent Insights:
 """
         
         for item in self.conversation_history[-3:]:
             if item['role'] == 'analysis':
-                session_text += f"\n- {item['content'][:200]}..."
+                session_text += f"\n- {item['content'][:150]}...\n"
         
         return session_text
 

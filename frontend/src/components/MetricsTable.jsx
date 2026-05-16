@@ -1,117 +1,61 @@
 // frontend/src/components/MetricsTable.jsx
 import React from 'react';
-import { FaTrophy, FaBolt, FaDollarSign, FaDatabase } from 'react-icons/fa';
+import { FaTrophy } from 'react-icons/fa';
 
 const MetricsTable = ({ results }) => {
   if (!results) return null;
 
-  // Get values with fallback
-  const getVal = (val, fallback = 'N/A') => val !== null && val !== undefined ? val : fallback;
-
   const data = [
     {
       metric: 'Latency (ms)',
-      icon: FaBolt,
-      color: 'yellow',
-      llm: getVal(results.llm_only?.latency_ms?.toFixed(0)),
-      rag: getVal(results.basic_rag?.latency_ms?.toFixed(0)),
-      graph: getVal(results.tigergraph?.latency_ms?.toFixed(0)),
+      llm: results.llm_only?.latency_ms?.toFixed(0) || 'N/A',
+      rag: results.basic_rag?.latency_ms?.toFixed(0) || 'N/A',
+      graph: results.tigergraph?.latency_ms?.toFixed(0) || 'N/A',
     },
     {
       metric: 'Total Tokens',
-      icon: FaDatabase,
-      color: 'blue',
-      llm: getVal(results.llm_only?.tokens_total, 0),
-      rag: getVal(results.basic_rag?.tokens_total, 0),
-      graph: getVal(results.tigergraph?.tokens_total, 0),
+      llm: results.llm_only?.tokens_total || 0,
+      rag: results.basic_rag?.tokens_total || 0,
+      graph: results.tigergraph?.tokens_total || 0,
     },
     {
       metric: 'Cost ($)',
-      icon: FaDollarSign,
-      color: 'green',
-      llm: `$${getVal(results.llm_only?.cost?.toFixed(6), '0')}`,
-      rag: `$${getVal(results.basic_rag?.cost?.toFixed(6), '0')}`,
-      graph: `$${getVal(results.tigergraph?.cost?.toFixed(6), '0')}`,
-    },
-    {
-      metric: 'Sources Used',
-      icon: FaDatabase,
-      color: 'purple',
-      llm: getVal(results.llm_only?.sources?.length, 0),
-      rag: getVal(results.basic_rag?.sources?.length, 0),
-      graph: getVal(results.tigergraph?.sources?.length, 0),
+      llm: `$${results.llm_only?.cost?.toFixed(6) || '0'}`,
+      rag: `$${results.basic_rag?.cost?.toFixed(6) || '0'}`,
+      graph: `$${results.tigergraph?.cost?.toFixed(6) || '0'}`,
     },
   ];
 
-  // Calculate fastest latency
-  const latencies = [
-    results.llm_only?.latency_ms,
-    results.basic_rag?.latency_ms,
-    results.tigergraph?.latency_ms
-  ].filter(v => v > 0);
-  
-  const fastestLatency = latencies.length > 0 ? Math.min(...latencies) : null;
-
   return (
-    <div className="bg-white rounded-xl shadow-2xl p-6 border-t-4 border-indigo-500">
-      <div className="flex items-center gap-3 mb-6 pb-4 border-b">
-        <FaTrophy className="text-3xl text-yellow-500" />
-        <h2 className="text-2xl font-bold text-gray-800">📊 Benchmark Comparison</h2>
+    <div className="bg-card rounded-xl border border-[#2a2a2a] overflow-hidden">
+      {/* Header */}
+      <div className="p-6 border-b border-[#2a2a2a] flex items-center gap-3">
+        <FaTrophy className="text-[#5a9c6f] text-xl" />
+        <h2 className="text-xl font-bold text-white">Performance Metrics</h2>
       </div>
-      
+
+      {/* Table */}
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full">
           <thead>
-            <tr className="bg-gradient-to-r from-blue-50 to-purple-50">
-              <th className="px-4 py-3 text-left font-bold text-gray-700">Metric</th>
-              <th className="px-4 py-3 text-left font-bold text-blue-600">
-                🤖 Pipeline 1<br /><span className="text-xs font-normal text-gray-500">LLM Only</span>
-              </th>
-              <th className="px-4 py-3 text-left font-bold text-green-600">
-                🔍 Pipeline 2<br /><span className="text-xs font-normal text-gray-500">Basic RAG</span>
-              </th>
-              <th className="px-4 py-3 text-left font-bold text-purple-600">
-                📊 Pipeline 3<br /><span className="text-xs font-normal text-gray-500">TigerGraph</span>
-              </th>
+            <tr className="border-b border-[#2a2a2a] bg-[#1f1f1f]/50">
+              <th className="px-6 py-4 text-left text-xs font-semibold text-[#999999] uppercase tracking-wider">Metric</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-[#5a9c6f] uppercase tracking-wider">Pipeline 1</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-[#5a9c6f] uppercase tracking-wider">Pipeline 2</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-[#5a9c6f] uppercase tracking-wider">Pipeline 3</th>
             </tr>
           </thead>
           <tbody>
-            {data.map((row, idx) => {
-              const isLatencyRow = row.metric === 'Latency (ms)';
-              const isFastest = (val) => {
-                if (!isLatencyRow || !fastestLatency) return false;
-                return parseFloat(val) === fastestLatency;
-              };
-              
-              return (
-                <tr key={idx} className="border-b hover:bg-gray-50 transition">
-                  <td className="px-4 py-3 font-semibold text-gray-700 flex items-center gap-2">
-                    <span className={`text-${row.color}-500`}>●</span>
-                    {row.metric}
-                  </td>
-                  <td className={`px-4 py-3 font-medium ${isFastest(row.llm) ? 'bg-green-100 text-green-700' : 'text-gray-600'}`}>
-                    {row.llm} {isFastest(row.llm) && '🏆'}
-                  </td>
-                  <td className={`px-4 py-3 font-medium ${isFastest(row.rag) ? 'bg-green-100 text-green-700' : 'text-gray-600'}`}>
-                    {row.rag} {isFastest(row.rag) && '🏆'}
-                  </td>
-                  <td className={`px-4 py-3 font-medium ${isFastest(row.graph) ? 'bg-green-100 text-green-700' : 'text-gray-600'}`}>
-                    {row.graph} {isFastest(row.graph) && '🏆'}
-                  </td>
-                </tr>
-              );
-            })}
+            {data.map((row, idx) => (
+              <tr key={idx} className="border-b border-[#2a2a2a] hover:bg-[#1f1f1f]/50 transition-colors">
+                <td className="px-6 py-4 text-sm font-medium text-white">{row.metric}</td>
+                <td className="px-6 py-4 text-sm text-[#e0e0e0]">{row.llm}</td>
+                <td className="px-6 py-4 text-sm text-[#e0e0e0]">{row.rag}</td>
+                <td className="px-6 py-4 text-sm text-[#e0e0e0]">{row.graph}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
-      </div>
-
-      <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
-        <strong>📊 Summary:</strong> 
-        <ul className="mt-2 space-y-1">
-          <li>✅ <strong>Pipeline 1 (LLM):</strong> Full context, fast response</li>
-          <li>✅ <strong>Pipeline 2 (RAG):</strong> Vector search, targeted results</li>
-          <li>⏳ <strong>Pipeline 3 (TigerGraph):</strong> Coming soon!</li>
-        </ul>
       </div>
     </div>
   );

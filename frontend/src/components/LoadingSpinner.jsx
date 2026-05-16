@@ -3,22 +3,25 @@ import React from 'react';
 
 const LoadingSpinner = ({ message = "Processing..." }) => {
   return (
-    <div className="flex flex-col items-center justify-center p-8 min-h-[400px]">
-      <div className="relative mb-8">
-        <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-b-transparent"></div>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="animate-pulse text-white text-2xl">⚡</div>
-        </div>
+    <div className="flex flex-col items-center justify-center py-20">
+      {/* Animated spinner */}
+      <div className="relative w-20 h-20 mb-8">
+        <div className="absolute inset-0 rounded-full border-2 border-[#2a2a2a]"></div>
+        <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-[#5a9c6f] animate-spin"></div>
       </div>
-      
-      <p className="text-white text-lg font-semibold animate-pulse text-center max-w-md">
-        {message}
-      </p>
-      
-      <div className="mt-6 flex gap-1">
-        <div className="h-2 w-2 bg-white rounded-full animate-bounce"></div>
-        <div className="h-2 w-2 bg-white rounded-full animate-bounce delay-100"></div>
-        <div className="h-2 w-2 bg-white rounded-full animate-bounce delay-200"></div>
+
+      <p className="text-white font-semibold text-lg mb-2">{message}</p>
+      <p className="text-[#666666] text-sm">This may take a moment...</p>
+
+      {/* Progress dots */}
+      <div className="flex gap-2 mt-6">
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className="w-2 h-2 rounded-full bg-[#5a9c6f] animate-pulse"
+            style={{ animationDelay: `${i * 0.2}s` }}
+          ></div>
+        ))}
       </div>
     </div>
   );
