@@ -1,25 +1,37 @@
 // frontend/src/components/LoadingSpinner.jsx
 import React from 'react';
 
-const LoadingSpinner = ({ message = "Processing..." }) => {
+const LoadingSpinner = () => {
   return (
-    <div className="flex flex-col items-center justify-center py-20">
-      {/* Animated spinner */}
-      <div className="relative w-20 h-20 mb-8">
-        <div className="absolute inset-0 rounded-full border-2 border-[#2a2a2a]"></div>
-        <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-[#5a9c6f] animate-spin"></div>
-      </div>
-
-      <p className="text-white font-semibold text-lg mb-2">{message}</p>
-      <p className="text-[#666666] text-sm">This may take a moment...</p>
-
-      {/* Progress dots */}
-      <div className="flex gap-2 mt-6">
+    <div className="flex flex-col items-center justify-center space-y-8">
+      {/* Animated Blocks */}
+      <div className="flex gap-4">
         {[0, 1, 2].map((i) => (
           <div
             key={i}
-            className="w-2 h-2 rounded-full bg-[#5a9c6f] animate-pulse"
-            style={{ animationDelay: `${i * 0.2}s` }}
+            className="neoborder-thick border-black bg-orange w-16 h-16"
+            style={{
+              animation: `slideInUp 0.5s ease-out ${i * 0.08}s both`
+            }}
+          ></div>
+        ))}
+      </div>
+
+      {/* Text */}
+      <div className="text-center">
+        <h2 className="heading-lg text-black mb-2">EXECUTING ALL PIPELINES</h2>
+        <p className="font-semibold text-gray-700">Running 3 approaches in parallel...</p>
+      </div>
+
+      {/* Progress Dots */}
+      <div className="flex gap-2">
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className="w-3 h-3 bg-orange rounded-full"
+            style={{
+              animation: `brutalistPulse 1s ease-in-out ${i * 0.15}s infinite`
+            }}
           ></div>
         ))}
       </div>

@@ -1,61 +1,79 @@
 // frontend/src/components/MetricsTable.jsx
 import React from 'react';
-import { FaTrophy } from 'react-icons/fa';
 
 const MetricsTable = ({ results }) => {
   if (!results) return null;
 
-  const data = [
+  const metrics = [
     {
-      metric: 'Latency (ms)',
-      llm: results.llm_only?.latency_ms?.toFixed(0) || 'N/A',
-      rag: results.basic_rag?.latency_ms?.toFixed(0) || 'N/A',
-      graph: results.tigergraph?.latency_ms?.toFixed(0) || 'N/A',
+      name: 'Latency',
+      icon: '⏱️',
+      p1: `${results.llm_only?.latency_ms?.toFixed(0)}ms`,
+      p2: `${results.basic_rag?.latency_ms?.toFixed(0)}ms`,
+      p3: `${results.tigergraph?.latency_ms?.toFixed(0)}ms`,
     },
     {
-      metric: 'Total Tokens',
-      llm: results.llm_only?.tokens_total || 0,
-      rag: results.basic_rag?.tokens_total || 0,
-      graph: results.tigergraph?.tokens_total || 0,
+      name: 'Total Tokens',
+      icon: '📊',
+      p1: results.llm_only?.tokens_total || 0,
+      p2: results.basic_rag?.tokens_total || 0,
+      p3: results.tigergraph?.tokens_total || 0,
     },
     {
-      metric: 'Cost ($)',
-      llm: `$${results.llm_only?.cost?.toFixed(6) || '0'}`,
-      rag: `$${results.basic_rag?.cost?.toFixed(6) || '0'}`,
-      graph: `$${results.tigergraph?.cost?.toFixed(6) || '0'}`,
+      name: 'Cost',
+      icon: '💰',
+      p1: `$${results.llm_only?.cost?.toFixed(6)}`,
+      p2: `$${results.basic_rag?.cost?.toFixed(6)}`,
+      p3: `$${results.tigergraph?.cost?.toFixed(6)}`,
     },
   ];
 
   return (
-    <div className="bg-card rounded-xl border border-[#2a2a2a] overflow-hidden">
+    <div className="neoborder-thick border-black bg-white overflow-hidden">
       {/* Header */}
-      <div className="p-6 border-b border-[#2a2a2a] flex items-center gap-3">
-        <FaTrophy className="text-[#5a9c6f] text-xl" />
-        <h2 className="text-xl font-bold text-white">Performance Metrics</h2>
+      <div className="bg-black text-white">
+        <div className="grid grid-cols-5 gap-6 p-6">
+          <div>
+            <p className="label text-orange">Metric</p>
+          </div>
+          <div>
+            <p className="label text-orange">Pipeline 1</p>
+            <p className="text-xs text-gray-300">LLM Only</p>
+          </div>
+          <div>
+            <p className="label text-orange">Pipeline 2</p>
+            <p className="text-xs text-gray-300">Basic RAG</p>
+          </div>
+          <div>
+            <p className="label text-orange">Pipeline 3</p>
+            <p className="text-xs text-gray-300">GraphRAG</p>
+          </div>
+          <div></div>
+        </div>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-[#2a2a2a] bg-[#1f1f1f]/50">
-              <th className="px-6 py-4 text-left text-xs font-semibold text-[#999999] uppercase tracking-wider">Metric</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-[#5a9c6f] uppercase tracking-wider">Pipeline 1</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-[#5a9c6f] uppercase tracking-wider">Pipeline 2</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-[#5a9c6f] uppercase tracking-wider">Pipeline 3</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.map((row, idx) => (
-              <tr key={idx} className="border-b border-[#2a2a2a] hover:bg-[#1f1f1f]/50 transition-colors">
-                <td className="px-6 py-4 text-sm font-medium text-white">{row.metric}</td>
-                <td className="px-6 py-4 text-sm text-[#e0e0e0]">{row.llm}</td>
-                <td className="px-6 py-4 text-sm text-[#e0e0e0]">{row.rag}</td>
-                <td className="px-6 py-4 text-sm text-[#e0e0e0]">{row.graph}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* Rows */}
+      <div className="divide-y-4 divide-black">
+        {metrics.map((metric, idx) => (
+          <div key={idx} className="grid grid-cols-5 gap-6 p-6 hover:bg-gray-50 transition">
+            <div>
+              <p className="font-bold text-black text-lg flex items-center gap-2">
+                <span className="text-2xl">{metric.icon}</span>
+                {metric.name}
+              </p>
+            </div>
+            <div>
+              <p className="heading-sm text-teal">{metric.p1}</p>
+            </div>
+            <div>
+              <p className="heading-sm text-mustard">{metric.p2}</p>
+            </div>
+            <div>
+              <p className="heading-sm text-sage">{metric.p3}</p>
+            </div>
+            <div></div>
+          </div>
+        ))}
       </div>
     </div>
   );
