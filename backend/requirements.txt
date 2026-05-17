@@ -19,3 +19,4 @@ evaluate
 bert-score
 torch
 transformers
+gunicorn
