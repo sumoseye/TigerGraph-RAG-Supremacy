@@ -25,7 +25,7 @@ const QueryInput = ({ onSubmit, loading, hideOptions }) => {
 
   return (
     <div className="w-full">
-      {/* Main Search Bar - Centered, Rounded - BIGGER */}
+      {/* Main Search Bar */}
       <div className="pb-16">
         <form onSubmit={handleSubmit} className="w-full flex justify-center">
           <div className="search-wrapper-big">
@@ -47,17 +47,17 @@ const QueryInput = ({ onSubmit, loading, hideOptions }) => {
           </div>
         </form>
       </div>
-      
 
-      {/* Sample Queries - White Buttons with Black Shadow - Hidden when searching */}
+      {/* Sample Queries with explicit spacing */}
       {!hideOptions && (
-        <div className="flex flex-wrap gap-4 justify-center query-bubbles-container">
+        <div className="flex flex-wrap justify-center items-center query-bubbles-container px-4" style={{ gap: '0.9rem' }}>
           {sampleQueries.map((sample, idx) => (
             <button
               key={idx}
               onClick={() => handleSample(sample)}
               disabled={loading}
               className="query-bubble-neo"
+              style={{ margin: 0 }}
             >
               {sample}
             </button>

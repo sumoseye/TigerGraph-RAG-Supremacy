@@ -59,7 +59,7 @@ function App() {
           {error && (
             <div className="neoborder border-rust bg-rust/15 p-6 mb-8 animate-in rounded-2xl">
               <div className="flex items-start gap-4">
-                <span className="text-3xl"></span>
+                <span className="text-3xl">⚠️</span>
                 <div>
                   <h3 className="heading-sm text-rust mb-2">ERROR</h3>
                   <p className="text-black font-medium">{error}</p>
@@ -68,18 +68,28 @@ function App() {
             </div>
           )}
 
-          {/* Loading State - LOWER POSITION */}
+          {/* Loading State */}
           {loading && (
             <div style={{ marginTop: '80px' }}>
               <LoadingSpinner />
             </div>
           )}
 
-          {/* Results Section - Side by Side with More Spacing */}
+          {/* Results Section - TABLE FIRST, THEN CARDS */}
           {results && !loading && (
-            <div className="space-y-12 px-6 py-12" style={{ marginTop: '25px' , marginBottom: '50px'}}>
-              {/* Pipeline Cards - 3 Columns Horizontal with padding and gap */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 px-8">
+            <div style={{ marginTop: '4rem', marginBottom: '4rem' }}>
+              {/* Metrics Table - COMES FIRST */}
+              <MetricsTable results={results} />
+
+              {/* Pipeline Cards - COMES BELOW TABLE */}
+              <div 
+                className="grid grid-cols-1 lg:grid-cols-3 gap-8"
+                style={{ 
+                  paddingLeft: '2rem',
+                  paddingRight: '2rem',
+                  marginTop: '4rem'
+                }}
+              >
                 <PipelineCard
                   data={results.llm_only}
                   title="LLM Only"
@@ -94,15 +104,10 @@ function App() {
                 />
                 <PipelineCard
                   data={results.tigergraph}
-                  title="TigerGraph"
+                  title="Multi-Agent"
                   subtitle="Graph-Enhanced RAG"
                   accentColor="#6B8E23"
                 />
-              </div>
-
-              {/* Metrics Table - With spacing and padding */}
-              <div className="mt-16 px-8">
-                <MetricsTable results={results} />
               </div>
             </div>
           )}
@@ -117,7 +122,7 @@ function App() {
         <div className="footer-pattern mb-8"></div>
         <div className="text-center">
           <h2 className="text-5xl font-bold mb-3 text-orange tracking-tight">PAPERCUT</h2>
-          <p className="text-lg text-orange ">Slash through messy research.</p>
+          <p className="text-lg text-orange">Slash through messy research.</p>
         </div>
       </footer>
     </div>
