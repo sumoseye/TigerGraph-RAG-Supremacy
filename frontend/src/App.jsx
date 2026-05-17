@@ -70,7 +70,7 @@ function App() {
 
           {/* Loading State - LOWER POSITION */}
           {loading && (
-            <div style={{ marginTop: '150px' }}>
+            <div style={{ marginTop: '80px' }}>
               <LoadingSpinner />
             </div>
           )}

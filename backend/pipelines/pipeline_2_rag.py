@@ -1,3 +1,4 @@
+# backend/pipelines/pipeline_2_rag.py
 import time
 from pathlib import Path
 import pandas as pd
@@ -9,11 +10,24 @@ from app.config import settings
 # Initialize Groq
 groq_client = Groq(api_key=settings.GROQ_API_KEY)
 
-# Initialize ChromaDB (NEW WAY - no Settings)
+# Initialize ChromaDB
 chroma_client = chromadb.EphemeralClient()
 
 # Global collection cache
 _collection = None
+
+def clean_markdown(text: str) -> str:
+    """Remove markdown formatting from text"""
+    text = text.replace('**', '')
+    text = text.replace('*', '')
+    text = text.replace('_', '')
+    text = text.replace('`', '')
+    text = text.replace('##', '')
+    text = text.replace('#', '')
+    import re
+    text = re.sub(r'^\s*[-•]\s+', '', text, flags=re.MULTILINE)
+    text = re.sub(r'^\d+\.\s+', '', text, flags=re.MULTILINE)
+    return text.strip()
 
 def get_or_create_collection():
     """Get or create ChromaDB collection"""
@@ -23,7 +37,7 @@ def get_or_create_collection():
         return _collection
     
     print(f"\n{'='*70}")
-    print(f"🗂️  CREATING CHROMADB COLLECTION")
+    print(f"CREATING CHROMADB COLLECTION")
     print(f"{'='*70}")
     
     # Delete existing collection if it exists
@@ -38,7 +52,7 @@ def get_or_create_collection():
         metadata={"hnsw:space": "cosine"}
     )
     
-    print(f"✅ Collection created\n")
+    print(f"Collection created\n")
     return _collection
 
 def index_dataset() -> Dict[str, Any]:
@@ -46,7 +60,7 @@ def index_dataset() -> Dict[str, Any]:
     dataset_path = settings.DATASET_PATH
     
     print(f"\n{'='*70}")
-    print(f"📚 INDEXING DATASET INTO CHROMADB")
+    print(f"INDEXING DATASET INTO CHROMADB")
     print(f"{'='*70}")
     
     if not dataset_path.exists():
@@ -57,16 +71,16 @@ def index_dataset() -> Dict[str, Any]:
     csv_files = list(dataset_path.glob("*.csv"))
     
     if not csv_files:
-        print("❌ No CSV files found")
+        print("No CSV files found")
         return {"indexed": 0, "collection_size": 0}
     
     csv_file = csv_files[0]
-    print(f"📄 Reading: {csv_file.name}")
+    print(f"Reading: {csv_file.name}")
     
     try:
         # Read CSV with pipe delimiter
         df = pd.read_csv(csv_file, delimiter='|', nrows=500)  # Index 500 papers
-        print(f"✅ Loaded {len(df)} papers")
+        print(f"Loaded {len(df)} papers")
         
         # Prepare data for ChromaDB
         documents = []
@@ -81,7 +95,7 @@ def index_dataset() -> Dict[str, Any]:
                 documents.append(doc_text)
                 
                 metadatas.append({
-                    "title": str(row['title'])[:100],  # Limit length
+                    "title": str(row['title'])[:100],
                     "authors": str(row['authors'])[:100],
                     "published": str(row['published'])[:20],
                     "paper_id": str(row['paper_id'])
@@ -90,21 +104,21 @@ def index_dataset() -> Dict[str, Any]:
                 ids.append(f"paper_{idx}")
                 
             except Exception as e:
-                print(f"  ⚠️  Error processing row {idx}: {e}")
+                print(f"  Warning - Error processing row {idx}: {e}")
                 continue
         
         # Add to collection
         if documents:
-            print(f"\n⏳ Adding {len(documents)} papers to ChromaDB...")
+            print(f"\nAdding {len(documents)} papers to ChromaDB...")
             collection.add(
                 documents=documents,
                 metadatas=metadatas,
                 ids=ids
             )
-            print(f"✅ Indexed {len(documents)} papers")
+            print(f"Indexed {len(documents)} papers")
         
         print(f"\n{'='*70}")
-        print(f"✅ ChromaDB Collection Size: {collection.count()}")
+        print(f"ChromaDB Collection Size: {collection.count()}")
         print(f"{'='*70}\n")
         
         return {
@@ -113,7 +127,7 @@ def index_dataset() -> Dict[str, Any]:
         }
         
     except Exception as e:
-        print(f"❌ Error indexing: {e}")
+        print(f"Error indexing: {e}")
         import traceback
         traceback.print_exc()
         return {"indexed": 0, "collection_size": 0}
@@ -124,10 +138,10 @@ def search_papers(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
     
     # If collection is empty, index first
     if collection.count() == 0:
-        print("📚 Collection empty, indexing now...")
+        print("Collection empty, indexing now...")
         index_dataset()
     
-    print(f"\n🔍 Searching for: '{query}'")
+    print(f"\nSearching for: '{query}'")
     
     try:
         # Query ChromaDB
@@ -145,11 +159,11 @@ def search_papers(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
                     "distance": results['distances'][0][i] if results['distances'] else 0
                 })
         
-        print(f"✅ Found {len(papers)} relevant papers")
+        print(f"Found {len(papers)} relevant papers")
         return papers
         
     except Exception as e:
-        print(f"❌ Search error: {e}")
+        print(f"Search error: {e}")
         return []
 
 async def pipeline_2_rag(query: str) -> dict:
@@ -158,7 +172,7 @@ async def pipeline_2_rag(query: str) -> dict:
     
     try:
         print(f"\n{'='*70}")
-        print(f"🔍 PIPELINE 2: BASIC RAG")
+        print(f"PIPELINE 2: BASIC RAG")
         print(f"{'='*70}")
         print(f"Query: {query}\n")
         
@@ -168,7 +182,7 @@ async def pipeline_2_rag(query: str) -> dict:
         
         if not relevant_papers:
             return {
-                "answer": "❌ No relevant papers found in dataset",
+                "answer": "No relevant papers found in dataset",
                 "latency_ms": (time.time() - start_time) * 1000,
                 "tokens_in": 0,
                 "tokens_out": 0,
@@ -185,7 +199,7 @@ async def pipeline_2_rag(query: str) -> dict:
         context = "Retrieved Papers:\n\n"
         sources = []
         
-        seen_titles = set()  # Track titles we've already added
+        seen_titles = set()
         for i, paper in enumerate(relevant_papers, 1):
             context += f"Paper {i}:\n"
             context += f"{paper['content'][:500]}...\n"
@@ -194,7 +208,6 @@ async def pipeline_2_rag(query: str) -> dict:
             context += "-" * 50 + "\n\n"
             
             title = paper['metadata'].get('title', '')
-            # Only add if title is unique
             if title and title not in seen_titles:
                 sources.append(title)
                 seen_titles.add(title)
@@ -205,7 +218,8 @@ async def pipeline_2_rag(query: str) -> dict:
         system_prompt = """You are an expert research assistant using Retrieval-Augmented Generation (RAG).
 You have retrieved the most relevant papers from an arXiv database based on the user's query.
 Use the retrieved papers to provide a comprehensive, accurate answer.
-Always cite which paper(s) you're referencing in your answer."""
+Do NOT use markdown formatting, asterisks, bold text, or special characters.
+Use plain text only and cite which papers you reference."""
         
         user_prompt = f"""Retrieved Context:
 {context}
@@ -213,9 +227,9 @@ Always cite which paper(s) you're referencing in your answer."""
 ---
 User Query: {query}
 
-Based on the retrieved papers above, provide a detailed answer:"""
+Based on the papers above, provide a detailed answer in plain text:"""
         
-        print(f"⏳ Calling Groq API...")
+        print(f"Calling Groq API...")
         
         response = groq_client.chat.completions.create(
             model=settings.GROQ_MODEL,
@@ -228,9 +242,10 @@ Based on the retrieved papers above, provide a detailed answer:"""
         )
         
         answer = response.choices[0].message.content
+        answer = clean_markdown(answer)  # Remove any markdown
         latency_ms = (time.time() - start_time) * 1000
         
-        print(f"✅ Response in {latency_ms:.0f}ms\n")
+        print(f"Response in {latency_ms:.0f}ms\n")
         
         return {
             "answer": answer,
@@ -247,12 +262,12 @@ Based on the retrieved papers above, provide a detailed answer:"""
         
     except Exception as e:
         latency_ms = (time.time() - start_time) * 1000
-        print(f"❌ Error: {e}\n")
+        print(f"Error: {e}\n")
         import traceback
         traceback.print_exc()
         
         return {
-            "answer": f"❌ Error: {str(e)}",
+            "answer": f"Error: {str(e)}",
             "latency_ms": round(latency_ms, 2),
             "tokens_in": 0,
             "tokens_out": 0,
