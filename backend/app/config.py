@@ -23,8 +23,8 @@ class Settings:
     HF_JUDGE_MODEL: str = "meta-llama/Llama-3.1-8B-Instruct"
     
     # Server
-    BACKEND_PORT: int = int(os.getenv("BACKEND_PORT", "8000"))
-    CORS_ORIGINS: list = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
+    BACKEND_PORT: int = int(os.getenv("BACKEND_PORT", "9000"))
+    CORS_ORIGINS: list = os.getenv("CORS_ORIGINS", "http://localhost:5174,http://localhost:3000").split(",")
     
     # Paths
     BASE_DIR: Path = BASE_DIR

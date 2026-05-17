@@ -10,8 +10,8 @@ if __name__ == "__main__":
 ║                                                                  ║
 ╠══════════════════════════════════════════════════════════════════╣
 ║                                                                  ║
-║  🌐 Backend: http://localhost:8000                              ║
-║  📚 Docs:    http://localhost:8000/docs                         ║
+║  🌐 Backend: http://localhost:9000                              ║
+║  📚 Docs:    http://localhost:9000/docs                         ║
 ║  🤖 Model:   Groq Llama 3.1                                     ║
 ║  💰 Cost:    $0.00 (FREE - 14,400 req/day)                      ║
 ║                                                                  ║
@@ -26,7 +26,7 @@ if __name__ == "__main__":
         uvicorn.run(
                 "app.main:app",                    # ✅ Indented 4 more spaces
                 host="0.0.0.0",
-                port=8000,
+                port=9000,
                 reload=True,
                 timeout_keep_alive=300,
                 limit_concurrency=10,

@@ -1,7 +1,7 @@
 import requests
 import json
 
-url = "http://localhost:8000/api/evaluate"
+url = "http://localhost:9000/api/evaluate"
 
 payload = {
     "query": "What are the latest advances in quantum computing?",
