@@ -1,6 +1,6 @@
 <img width="4444" height="4640" alt="system_architecture" src="https://github.com/user-attachments/assets/5c1072e9-f9b4-4cf3-ac5f-868f2f0b3be3" />
 
-APERCUT: GraphRAG Research Engine
+PAPERCUT: GraphRAG Research Engine
 Academic research is inherently interconnected through citations, authors, and methodologies. While millions of papers are published annually, traditional retrieval systems and standard Retrieval-Augmented Generation (RAG) frameworks treat documents as isolated entities, losing the structural relationships between them.
 
 PAPERCUT is a next-generation research engine that utilizes a Knowledge Graph-driven RAG pipeline (GraphRAG) to preserve contextual connections across academic literature.
