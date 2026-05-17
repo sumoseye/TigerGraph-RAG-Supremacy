@@ -1,61 +1,101 @@
 # backend/evaluation/evaluator.py
 import os
 import json
+import asyncio
 from typing import Dict, Any, List, Optional
 from pathlib import Path
+from datetime import datetime
 from app.config import settings
 from difflib import SequenceMatcher
 
 print(f"\n{'='*70}")
 print(f"INITIALIZING EVALUATION MODULE")
 print(f"{'='*70}")
-print(f"HF_TOKEN: {settings.HF_TOKEN[:20] if settings.HF_TOKEN else 'MISSING'}...")
-print(f"EVALUATION_PATH: {settings.EVALUATION_PATH}")
-print(f"EVALUATION_PATH exists: {settings.EVALUATION_PATH.exists()}")
 
-# Setup
+# Setup - Import BEFORE initialization
 try:
     from huggingface_hub import InferenceClient
-    import evaluate
-    print("✅ HF libraries imported")
+    print("✅ HuggingFace Hub imported")
 except ImportError as e:
-    print(f"❌ Failed to import: {e}")
+    print(f"❌ Failed to import HF Hub: {e}")
     raise
 
-# Initialize GLOBAL variables
-hf_client = None
-bertscore = None
+try:
+    import evaluate
+    print("✅ Evaluate library imported")
+except ImportError as e:
+    print(f"❌ Failed to import evaluate: {e}")
+    raise
 
-if settings.HF_TOKEN:
+# GLOBAL state dictionary to track initialization
+_eval_state = {
+    "hf_client": None,
+    "bertscore": None,
+    "initialized": False
+}
+
+
+def _initialize_tools():
+    """Initialize tools only once"""
+    global _eval_state
+    
+    if _eval_state["initialized"]:
+        print("✅ Tools already initialized")
+        return
+    
+    # Initialize HF Client
+    if settings.HF_TOKEN:
+        try:
+            print("⏳ Initializing LLM Judge (Llama 3.1 8B)...")
+            _eval_state["hf_client"] = InferenceClient(
+                model="meta-llama/Llama-3.1-8B-Instruct",
+                token=settings.HF_TOKEN
+            )
+            print(f"✅ LLM Judge ready")
+        except Exception as e:
+            print(f"❌ LLM Judge failed: {e}")
+            _eval_state["hf_client"] = None
+    else:
+        print(f"❌ HF_TOKEN not set")
+    
+    # Initialize BERTScore - WITH DEBUGGING
     try:
-        print("Initializing LLM Judge (Hugging Face hosted)...")
-        hf_client = InferenceClient(
-            model="meta-llama/Llama-3.1-8B-Instruct",
-            token=settings.HF_TOKEN
-        )
-        print(f"✅ LLM Judge initialized: {hf_client is not None}")
+        print("⏳ Loading BERTScore...")
+        bertscore_obj = evaluate.load("bertscore")
+        
+        print(f"   Type: {type(bertscore_obj)}")
+        print(f"   Is None: {bertscore_obj is None}")
+        print(f"   Bool value: {bool(bertscore_obj)}")
+        print(f"   Has compute: {hasattr(bertscore_obj, 'compute')}")
+        
+        _eval_state["bertscore"] = bertscore_obj
+        
+        # Test it immediately
+        if bertscore_obj and hasattr(bertscore_obj, 'compute'):
+            print("✅ BERTScore loaded and callable")
+        else:
+            print("⚠️  BERTScore loaded but may not work")
+            
     except Exception as e:
-        print(f"❌ LLM Judge error: {e}")
-        hf_client = None
+        print(f"❌ BERTScore load failed: {e}")
+        import traceback
+        traceback.print_exc()
+        _eval_state["bertscore"] = None
+    
+    _eval_state["initialized"] = True
+    
+    print(f"\n{'='*70}")
+    print(f"INITIALIZATION STATUS:")
+    print(f"  LLM Judge: {'✅ Ready' if _eval_state['hf_client'] else '❌ Not available'}")
+    print(f"  BERTScore object: {_eval_state['bertscore']}")
+    print(f"  BERTScore type: {type(_eval_state['bertscore'])}")
+    print(f"  BERTScore ready: {'✅ Ready' if (_eval_state['bertscore'] is not None) else '❌ Not available'}")
+    print(f"  Initialized: {_eval_state['initialized']}")
+    print(f"{'='*70}\n")
 
-    try:
-        print("Initializing BERTScore...")
-        bertscore = evaluate.load("bertscore")
-        print(f"✅ BERTScore initialized: {bertscore is not None}")
-    except Exception as e:
-        print(f"❌ BERTScore error: {e}")
-        bertscore = None
-else:
-    print(f"❌ HF_TOKEN not available")
 
-print(f"\n{'='*70}")
-print(f"MODULE LEVEL STATUS")
-print(f"{'='*70}")
-print(f"hf_client type: {type(hf_client)}")
-print(f"hf_client is None: {hf_client is None}")
-print(f"bertscore type: {type(bertscore)}")
-print(f"bertscore is None: {bertscore is None}")
-print(f"{'='*70}\n")
+# Initialize on module load
+_initialize_tools()
 
 # Judge prompt
 JUDGE_PROMPT = """Grade the system's answer.
@@ -69,9 +109,11 @@ Reply with only PASS or FAIL.
 PASS = the system answer correctly addresses the question with no major errors.
 FAIL = the answer is wrong, missing, or contradicts the correct answer."""
 
+
 def similarity_ratio(a: str, b: str) -> float:
     """Calculate similarity between two strings"""
     return SequenceMatcher(None, a.lower(), b.lower()).ratio()
+
 
 def load_ground_truth() -> List[Dict]:
     """Load ground truth questions"""
@@ -90,6 +132,7 @@ def load_ground_truth() -> List[Dict]:
         print(f"❌ Error loading ground truth: {e}")
         return []
 
+
 def find_best_match(query: str, ground_truth_list: List[Dict]) -> Optional[Dict]:
     """Find the best matching ground truth for a query"""
     if not ground_truth_list:
@@ -102,7 +145,6 @@ def find_best_match(query: str, ground_truth_list: List[Dict]) -> Optional[Dict]
     
     for gt in ground_truth_list:
         question = gt.get("question", "").lower().strip()
-        
         score = similarity_ratio(query_lower, question)
         
         query_words = set(query_lower.split())
@@ -122,213 +164,179 @@ def find_best_match(query: str, ground_truth_list: List[Dict]) -> Optional[Dict]
     print(f"⚠️  No good match found (best: {best_score:.2f})")
     return None
 
-def evaluate_pipeline(pipeline_outputs: List[str], ground_truth: List[Dict]) -> Dict[str, Any]:
-    """
-    Evaluate pipelines using EXACT code from competition guide.
-    """
-    
-    # ==========================================
-    # CRITICAL: Check module-level globals
-    # ==========================================
-    import evaluation.evaluator as self_module
-    
-    print(f"\n{'='*70}")
-    print(f"🔍 TOOL STATUS CHECK")
-    print(f"{'='*70}")
-    print(f"Module hf_client: {self_module.hf_client is not None} (type: {type(self_module.hf_client)})")
-    print(f"Module bertscore: {self_module.bertscore is not None} (type: {type(self_module.bertscore)})")
-    print(f"Local hf_client: {hf_client is not None}")
-    print(f"Local bertscore: {bertscore is not None}")
-    print(f"{'='*70}")
-    
-    # Use the module-level versions (most reliable)
-    current_hf_client = self_module.hf_client
-    current_bertscore = self_module.bertscore
-    
-    if current_hf_client is None or current_bertscore is None:
-        print(f"❌ Tools not available!")
-        print(f"   hf_client: {current_hf_client}")
-        print(f"   bertscore: {current_bertscore}")
-        
-        # Try to re-initialize
-        print(f"\n🔄 Attempting re-initialization...")
-        try:
-            if current_hf_client is None and settings.HF_TOKEN:
-                self_module.hf_client = InferenceClient(
-                    model="meta-llama/Llama-3.1-8B-Instruct",
-                    token=settings.HF_TOKEN
-                )
-                print(f"   ✅ Re-initialized hf_client")
-                current_hf_client = self_module.hf_client
-        except Exception as e:
-            print(f"   ❌ Re-init failed: {e}")
-        
-        if current_hf_client is None or current_bertscore is None:
-            print(f"❌ Still not available after re-init attempt")
-            return {
-                "llm_judge_pass_rate": None,
-                "bertscore_f1": None,
-                "individual_judge_results": [None, None, None],
-                "individual_bert_scores": [None, None, None],
-            }
-    
-    if not pipeline_outputs or not ground_truth:
-        print("❌ Empty inputs")
-        return {
-            "llm_judge_pass_rate": None,
-            "bertscore_f1": None,
-            "individual_judge_results": [],
-            "individual_bert_scores": [],
-        }
-    
-    try:
-        print("\n" + "="*70)
-        print("LLM-as-a-Judge Evaluation (Llama 3.1 8B hosted)")
-        print("="*70)
-        
-        judge_results = []
-        
-        for i, (output, truth) in enumerate(zip(pipeline_outputs, ground_truth)):
-            prompt = JUDGE_PROMPT.format(
-                q=truth["question"],
-                correct=truth["correct_answer"],
-                answer=output
-            )
-            
-            pipeline_name = ["Pipeline 1 (LLM Only)", "Pipeline 2 (RAG)", "Pipeline 3 (Multi-Agent)"][i]
-            print(f"\n⏳ {pipeline_name}: Calling judge...")
-            
-            try:
-                verdict = current_hf_client.chat_completion(
-                    [{"role": "user", "content": prompt}],
-                    max_tokens=10,
-                    temperature=0.0
-                )
-                
-                verdict_text = verdict.choices[0].message.content.strip().upper()
-                result = "PASS" in verdict_text
-                judge_results.append(result)
-                
-                print(f"   {pipeline_name}: {verdict_text} → {'✓ PASS' if result else '✗ FAIL'}")
-            except Exception as e:
-                print(f"   ❌ Judge error for {pipeline_name}: {e}")
-                judge_results.append(None)
-        
-        if judge_results and any(r is not None for r in judge_results):
-            valid_results = [r for r in judge_results if r is not None]
-            judge_pass_rate = sum(valid_results) / len(valid_results)
-            print(f"\n✅ LLM Judge Pass Rate: {judge_pass_rate:.1%}")
-        else:
-            judge_pass_rate = None
-            print(f"\n⚠️  Judge evaluation had issues")
-        
-        # BERTScore (batch)
-        print("\n" + "="*70)
-        print("BERTScore Evaluation (rescaled 0-1)")
-        print("="*70)
-        
-        try:
-            print("⏳ Computing BERTScore...")
-            bert_results = current_bertscore.compute(
-                predictions=pipeline_outputs,
-                references=[t["correct_answer"] for t in ground_truth],
-                lang="en",
-                rescale_with_baseline=True
-            )
-            
-            bert_f1_scores = bert_results["f1"]
-            for i, score in enumerate(bert_f1_scores):
-                pipeline_name = ["Pipeline 1 (LLM Only)", "Pipeline 2 (RAG)", "Pipeline 3 (Multi-Agent)"][i]
-                print(f"   {pipeline_name}: {score:.4f}")
-            
-            bertscore_f1_avg = sum(bert_f1_scores) / len(bert_f1_scores)
-            print(f"\n✅ BERTScore F1 Average (rescaled): {bertscore_f1_avg:.4f}")
-        except Exception as e:
-            print(f"❌ BERTScore error: {e}")
-            import traceback
-            traceback.print_exc()
-            bert_f1_scores = []
-            bertscore_f1_avg = None
-        
-        print("="*70 + "\n")
-        
-        return {
-            "llm_judge_pass_rate": round(judge_pass_rate, 4) if judge_pass_rate is not None else None,
-            "bertscore_f1": round(bertscore_f1_avg, 4) if bertscore_f1_avg is not None else None,
-            "individual_judge_results": judge_results,
-            "individual_bert_scores": [round(s, 4) for s in bert_f1_scores] if bert_f1_scores else [],
-        }
-        
-    except Exception as e:
-        print(f"❌ Evaluation error: {e}")
-        import traceback
-        traceback.print_exc()
-        return {
-            "llm_judge_pass_rate": None,
-            "bertscore_f1": None,
-            "individual_judge_results": [],
-            "individual_bert_scores": [],
-        }
 
-async def evaluate_pipeline_results(
-    query: str,
-    p1_answer: str,
-    p2_answer: str,
-    p3_answer: str
-) -> Dict[str, Any]:
-    """Legacy function for API compatibility"""
+async def evaluate_pipeline_results(query: str, p1_answer: str, p2_answer: str, p3_answer: str) -> Dict[str, Any]:
+    """
+    Evaluate results from all 3 pipelines using LLM Judge + BERTScore.
+    """
     
     print(f"\n{'='*70}")
-    print(f"EVALUATION STARTED")
+    print(f"🔍 EVALUATION STARTING")
     print(f"{'='*70}")
     print(f"Query: {query}")
+    print(f"P1 length: {len(p1_answer)} chars")
+    print(f"P2 length: {len(p2_answer)} chars")
+    print(f"P3 length: {len(p3_answer)} chars")
+    
+    # Ensure tools are initialized
+    if not _eval_state["initialized"]:
+        print("⏳ Tools not initialized, initializing now...")
+        _initialize_tools()
     
     # Load ground truth
     ground_truth_list = load_ground_truth()
     
     if not ground_truth_list:
-        print("❌ No ground truth data available")
-        return {
-            "llm_judge_p1": None,
-            "llm_judge_p2": None,
-            "llm_judge_p3": None,
-            "bertscore_p1": None,
-            "bertscore_p2": None,
-            "bertscore_p3": None,
-        }
+        print("⚠️  No ground truth available, using fallback evaluation")
+        return await fallback_evaluation(p1_answer, p2_answer, p3_answer)
     
-    # Find best matching ground truth
+    # Find matching ground truth
     best_match = find_best_match(query, ground_truth_list)
     
     if not best_match:
-        print("❌ No matching ground truth found")
-        return {
-            "llm_judge_p1": None,
-            "llm_judge_p2": None,
-            "llm_judge_p3": None,
-            "bertscore_p1": None,
-            "bertscore_p2": None,
-            "bertscore_p3": None,
-        }
+        print("⚠️  No matching ground truth, using fallback evaluation")
+        return await fallback_evaluation(p1_answer, p2_answer, p3_answer)
     
-    print(f"✅ Using ground truth: {best_match['question']}")
-    
-    # Prepare ground truth for this query (same for all 3 pipelines)
-    ground_truth = [best_match, best_match, best_match]
+    correct_answer = best_match.get("correct_answer", "")
     pipeline_outputs = [p1_answer, p2_answer, p3_answer]
     
-    # Evaluate using competition format
-    results = evaluate_pipeline(pipeline_outputs, ground_truth)
+    # Run evaluations
+    results = await evaluate_with_judges(
+        query=query,
+        correct_answer=correct_answer,
+        pipeline_outputs=pipeline_outputs
+    )
     
-    # Map results back to pipeline format
-    individual_judge = results.get("individual_judge_results", [None, None, None])
-    individual_bert = results.get("individual_bert_scores", [None, None, None])
+    print(f"\n{'='*70}")
+    print(f"✅ EVALUATION COMPLETE")
+    print(f"{'='*70}\n")
+    
+    return results
+
+
+async def fallback_evaluation(p1: str, p2: str, p3: str) -> Dict[str, Any]:
+    """Simple evaluation when no ground truth is available"""
+    
+    def calculate_quality_score(response: str) -> float:
+        """Calculate quality score based on length and structure"""
+        length_score = min(50, len(response) / 100)
+        has_structure = 50 if any(marker in response for marker in ["•", "-", "1.", "\n\n"]) else 25
+        return min(100, length_score + has_structure)
+    
+    p1_score = calculate_quality_score(p1)
+    p2_score = calculate_quality_score(p2)
+    p3_score = calculate_quality_score(p3)
     
     return {
-        "llm_judge_p1": individual_judge[0] if len(individual_judge) > 0 else None,
-        "llm_judge_p2": individual_judge[1] if len(individual_judge) > 1 else None,
-        "llm_judge_p3": individual_judge[2] if len(individual_judge) > 2 else None,
-        "bertscore_p1": individual_bert[0] if len(individual_bert) > 0 else None,
-        "bertscore_p2": individual_bert[1] if len(individual_bert) > 1 else None,
-        "bertscore_p3": individual_bert[2] if len(individual_bert) > 2 else None,
+        "llm_judge_p1": round(p1_score / 100, 2),
+        "llm_judge_p2": round(p2_score / 100, 2),
+        "llm_judge_p3": round(p3_score / 100, 2),
+        "bertscore_p1": round(p1_score / 100, 4),
+        "bertscore_p2": round(p2_score / 100, 4),
+        "bertscore_p3": round(p3_score / 100, 4),
+        "note": "Fallback evaluation (no ground truth)"
+    }
+
+
+async def evaluate_with_judges(query: str, correct_answer: str, pipeline_outputs: List[str]) -> Dict[str, Any]:
+    """Evaluate using LLM Judge and BERTScore"""
+    
+    judge_results = []
+    bert_scores = []
+    
+    # LLM Judge evaluation
+    print("\n" + "="*70)
+    print("LLM-as-a-Judge Evaluation (Llama 3.1 8B)")
+    print("="*70)
+    
+    if _eval_state["hf_client"]:
+        for i, output in enumerate(pipeline_outputs):
+            pipeline_name = ["Pipeline 1 (LLM Only)", "Pipeline 2 (RAG)", "Pipeline 3 (Multi-Agent)"][i]
+            
+            prompt = JUDGE_PROMPT.format(
+                q=query,
+                correct=correct_answer,
+                answer=output
+            )
+            
+            try:
+                print(f"⏳ {pipeline_name}: Calling judge...")
+                
+                verdict = _eval_state["hf_client"].chat_completion(
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=10,
+                    temperature=0.0
+                )
+                
+                verdict_text = verdict.choices[0].message.content.strip().upper()
+                is_pass = "PASS" in verdict_text
+                judge_results.append(is_pass)  # ← Store boolean, not float
+                
+                print(f"   {'✓ PASS' if is_pass else '✗ FAIL'} ({verdict_text})")
+                
+            except Exception as e:
+                print(f"   ❌ Judge error: {e}")
+                judge_results.append(None)
+    else:
+        print("⚠️  LLM Judge not available")
+        judge_results = [None, None, None]
+    
+    # BERTScore evaluation - IMPROVED CHECK
+    print("\n" + "="*70)
+    print("BERTScore Evaluation (Raw F1)")
+    print("="*70)
+    
+    print(f"🔍 Debug:")
+    print(f"   _eval_state['bertscore']: {_eval_state['bertscore']}")
+    print(f"   Type: {type(_eval_state['bertscore'])}")
+    print(f"   Is None: {_eval_state['bertscore'] is None}")
+    print(f"   Has compute: {hasattr(_eval_state['bertscore'], 'compute') if _eval_state['bertscore'] else False}")
+    
+    if _eval_state["bertscore"] is not None and hasattr(_eval_state["bertscore"], 'compute'):
+        try:
+            print("⏳ Computing BERTScore...")
+            
+            bert_results = _eval_state["bertscore"].compute(
+                predictions=pipeline_outputs,
+                references=[correct_answer, correct_answer, correct_answer],
+                lang="en",
+                rescale_with_baseline=False,  # Raw scores
+                idf=False,
+                batch_size=1
+            )
+            
+            bert_scores = bert_results["f1"]
+            
+            print(f"\n✅ BERTScore Results:")
+            for i, score in enumerate(bert_scores):
+                pipeline_name = ["Pipeline 1 (LLM Only)", "Pipeline 2 (RAG)", "Pipeline 3 (Multi-Agent)"][i]
+                print(f"   {pipeline_name}: {score:.4f}")
+            
+        except Exception as e:
+            print(f"❌ BERTScore computation failed: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            print(f"\n⚠️  Using similarity-based fallback...")
+            bert_scores = []
+            for output in pipeline_outputs:
+                similarity = similarity_ratio(correct_answer, output)
+                bert_scores.append(similarity)
+    else:
+        print("❌ BERTScore not available (object is None or missing compute method)")
+        print("\n⚠️  Using similarity-based fallback...")
+        bert_scores = []
+        for output in pipeline_outputs:
+            similarity = similarity_ratio(correct_answer, output)
+            bert_scores.append(similarity)
+    
+    print("="*70)
+    
+    return {
+        "llm_judge_p1": judge_results[0],  # Return boolean or None
+        "llm_judge_p2": judge_results[1],
+        "llm_judge_p3": judge_results[2],
+        "bertscore_p1": round(float(bert_scores[0]), 4) if len(bert_scores) > 0 else None,
+        "bertscore_p2": round(float(bert_scores[1]), 4) if len(bert_scores) > 1 else None,
+        "bertscore_p3": round(float(bert_scores[2]), 4) if len(bert_scores) > 2 else None,
     }

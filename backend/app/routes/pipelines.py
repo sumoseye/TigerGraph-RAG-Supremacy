@@ -8,6 +8,7 @@ from pipelines.pipeline_3_agentic import pipeline_3_agentic
 from datetime import datetime
 import json
 import asyncio
+from evaluation.evaluator import evaluate_pipeline_results
 
 router = APIRouter()
 
