@@ -1,0 +1,27 @@
+{
+  "query": "What are the latest advances in quantum computing?",
+  "llm_only": {
+    "judge": false,
+    "bertscore": null,
+    "tokens": 2542,
+    "latency_ms": 1073.29
+  },
+  "basic_rag": {
+    "judge": false,
+    "bertscore": null,
+    "tokens": 1083,
+    "latency_ms": 41827.62
+  },
+  "agentic": {
+    "judge": true,
+    "bertscore": null,
+    "tokens": 898,
+    "latency_ms": 1938.78
+  },
+  "summary": {
+    "judge_pass_rate": 33.33333333333333,
+    "avg_bertscore": null,
+    "total_time_ms": 46169.326066970825
+  },
+  "status": "complete"
+}

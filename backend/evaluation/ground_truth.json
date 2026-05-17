@@ -1,0 +1,62 @@
+[
+    {
+      "question": "What are neural network architectures?",
+      "correct_answer": "Neural network architectures are computational models inspired by biological neural networks. Key architectures include Convolutional Neural Networks (CNNs) for image processing, Recurrent Neural Networks (RNNs) for sequential data, Transformers for attention-based processing, and more recent innovations like MetaFormer that have shown superior performance in computer vision and natural language processing tasks."
+    },
+    {
+      "question": "What are the latest advances in transformers?",
+      "correct_answer": "Recent transformer advances include MetaFormer architectures which demonstrate that attention mechanisms are not the only critical component. Transformers have shown great potential in computer vision tasks beyond NLP, with architectures focusing on efficient token mixing and feature extraction."
+    },
+    {
+      "question": "How do autoencoders work?",
+      "correct_answer": "Autoencoders are neural networks that learn efficient data encodings in an unsupervised manner. They consist of an encoder that compresses input data into a latent representation and a decoder that reconstructs the original input. Turbo autoencoders with trainable interleavers represent recent advances in reliable communication."
+    },
+    {
+      "question": "What is federated learning?",
+      "correct_answer": "Federated learning is a machine learning approach where models are trained across multiple decentralized devices or servers holding local data samples, without exchanging raw data. ProxyFL and similar approaches enable decentralized training while maintaining data privacy, particularly important in regulated domains like finance and healthcare."
+    },
+    {
+      "question": "What are graph neural networks?",
+      "correct_answer": "Graph Neural Networks are neural networks designed to operate on graph-structured data. They learn representations by aggregating information from neighboring nodes and edges, making them effective for tasks involving molecular structures, social networks, knowledge graphs, and recommendation systems."
+    },
+    {
+      "question": "How is machine learning used in physics?",
+      "correct_answer": "Machine learning in physics includes applications in high energy density physics for plasma modeling, X-ray emission diagnosis, time-resolved imaging systems, and data-driven approaches to complex physical phenomena. ML enables faster simulations, pattern recognition in experimental data, and prediction of physical properties."
+    },
+    {
+      "question": "What are the applications of deep learning in healthcare?",
+      "correct_answer": "Deep learning in healthcare enables medical image analysis, disease diagnosis, treatment planning, drug discovery, and personalized medicine. Applications include radiation therapy planning using Cerenkov emission measurements, medical imaging diagnostics, and patient outcome prediction."
+    },
+    {
+      "question": "What is reinforcement learning?",
+      "correct_answer": "Reinforcement learning is a machine learning paradigm where agents learn to make decisions by interacting with an environment to maximize cumulative rewards. Policy gradient and actor-critic methods enable learning in continuous time and space, with applications in robotics, control systems, and autonomous decision-making."
+    },
+    {
+      "question": "How do attention mechanisms work?",
+      "correct_answer": "Attention mechanisms allow neural networks to focus on relevant parts of input data when making predictions. They compute weighted combinations of input features, where weights indicate importance. Attention has become fundamental in transformers and modern architectures, enabling better context understanding and parallel processing."
+    },
+    {
+      "question": "What are reconfigurable robots?",
+      "correct_answer": "Reconfigurable robots are modular robotic systems that can change their configuration and morphology to adapt to different tasks. Unified modeling approaches combine modularity and reconfigurability aspects, allowing customization of manipulator configurations for various applications."
+    },
+    {
+      "question": "What is time series outlier detection?",
+      "correct_answer": "Time series outlier detection identifies unusual patterns or anomalies in sequential data. Unsupervised approaches using diversity-driven convolutional ensembles can detect outliers without labeled data, important for monitoring industrial processes, medical sensors, and IoT device networks."
+    },
+    {
+      "question": "How does edge computing work?",
+      "correct_answer": "Edge computing processes data closer to where it is generated rather than in centralized cloud servers. It involves data sensing and offloading strategies, with techniques like TDMA or NOMA for efficient communication in IoT networks."
+    },
+    {
+      "question": "What are the challenges in quantum computing?",
+      "correct_answer": "Quantum computing challenges include maintaining qubit coherence, implementing effective error correction, scaling qubit counts, and dealing with environmental interference. Research focuses on improving superconducting qubits, trapped ions, and photonic approaches while addressing decoherence and gate fidelity issues."
+    },
+    {
+      "question": "What is computer vision?",
+      "correct_answer": "Computer vision enables machines to interpret and understand visual information from images and videos. Applications include object detection, image classification, semantic segmentation, and scene understanding. Modern approaches use convolutional neural networks, transformers, and MetaFormer architectures for improved performance."
+    },
+    {
+      "question": "How do language models work?",
+      "correct_answer": "Language models learn probability distributions over sequences of words or tokens. Modern large language models use transformer architectures with self-attention mechanisms to understand context and generate coherent text. They are pre-trained on large corpora and can be fine-tuned for specific tasks."
+    }
+  ]

@@ -24,10 +24,13 @@ if __name__ == "__main__":
     
     try:
         uvicorn.run(
-            "app.main:app",
-            host="0.0.0.0",
-            port=settings.BACKEND_PORT,
-            reload=True
+        "app.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+        timeout_keep_alive=300,  # 5 minutes
+        limit_concurrency=10,
+        timeout_graceful_period=300,
         )
     except KeyboardInterrupt:
         print("\n✅ Backend stopped")

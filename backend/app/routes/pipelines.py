@@ -1,17 +1,25 @@
+# backend/app/routes/pipelines.py
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 from app.models import QueryRequest, PipelineResponse, BatchResponse
 from pipelines.pipeline_1_groq import pipeline_1_llm_only
 from pipelines.pipeline_2_rag import pipeline_2_rag
-from pipelines.pipeline_3_orchestrator import pipeline_3_orchestrator
+from pipelines.pipeline_3_agentic import pipeline_3_agentic
 from datetime import datetime
+import json
+import asyncio
 
 router = APIRouter()
+
+class EvaluationRequest(BaseModel):
+    query: str
+    ground_truth: str
 
 @router.post("/pipeline/llm", response_model=PipelineResponse)
 async def run_llm_pipeline(request: QueryRequest):
     try:
         result = await pipeline_1_llm_only(request.query)
-        return PipelineResponse(pipeline_name="LLM Only (Groq)", **result)
+        return PipelineResponse(pipeline_name="LLM Only", **result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -19,36 +27,91 @@ async def run_llm_pipeline(request: QueryRequest):
 async def run_rag_pipeline(request: QueryRequest):
     try:
         result = await pipeline_2_rag(request.query)
-        return PipelineResponse(pipeline_name="Basic RAG (ChromaDB)", **result)
+        return PipelineResponse(pipeline_name="Basic RAG", **result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/pipeline/tigergraph", response_model=PipelineResponse)
-async def run_tigergraph_pipeline(request: QueryRequest):
-    """Pipeline 3: Multi-Agent Orchestrator with TigerGraph Savanah"""
+@router.post("/pipeline/agentic", response_model=PipelineResponse)
+async def run_agentic_pipeline(request: QueryRequest):
     try:
-        result = await pipeline_3_orchestrator(request.query)
-        return PipelineResponse(pipeline_name="Multi-Agent TigerGraph", **result)
+        result = await pipeline_3_agentic(request.query)
+        return PipelineResponse(pipeline_name="Multi-Agent", **result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/pipelines/all", response_model=BatchResponse)
 async def run_all_pipelines(request: QueryRequest):
+    """Run all 3 pipelines AND evaluate them (WAITS FOR EVALUATION)"""
     try:
+        print(f"\n{'='*70}")
+        print(f"Running all pipelines for: {request.query}")
+        print(f"{'='*70}")
+        
+        # Step 1: Run all pipelines SEQUENTIALLY (wait for each)
+        print("\n⏳ Running Pipeline 1 (LLM Only)...")
         p1 = await pipeline_1_llm_only(request.query)
+        print(f"✅ Pipeline 1 complete - {p1['tokens_total']} tokens")
+        
+        print("\n⏳ Running Pipeline 2 (RAG)...")
         p2 = await pipeline_2_rag(request.query)
-        p3 = await pipeline_3_orchestrator(request.query)
+        print(f"✅ Pipeline 2 complete - {p2['tokens_total']} tokens")
+        
+        print("\n⏳ Running Pipeline 3 (Multi-Agent)...")
+        p3 = await pipeline_3_agentic(request.query)
+        print(f"✅ Pipeline 3 complete - {p3['tokens_total']} tokens")
+        
+        # Step 2: Evaluate (WAIT FOR THIS TOO)
+        print(f"\n{'='*70}")
+        print(f"⏳ EVALUATING PIPELINES (this may take 30-60 seconds)...")
+        print(f"{'='*70}")
+        
+        # Import the evaluator module
+        from evaluation.evaluator import evaluate_pipeline_results
+        
+        # AWAIT the evaluation
+        eval_results = await evaluate_pipeline_results(
+            query=request.query,
+            p1_answer=p1["answer"],
+            p2_answer=p2["answer"],
+            p3_answer=p3["answer"]
+        )
+        
+        print(f"\n✅ EVALUATION COMPLETE")
+        print(f"Evaluation results:")
+        print(f"  LLM Judge: P1={eval_results['llm_judge_p1']}, P2={eval_results['llm_judge_p2']}, P3={eval_results['llm_judge_p3']}")
+        print(f"  BERTScore: P1={eval_results['bertscore_p1']}, P2={eval_results['bertscore_p2']}, P3={eval_results['bertscore_p3']}")
+        
+        # Step 3: Create responses with evaluation results
+        p1_response = PipelineResponse(pipeline_name="LLM Only", **p1)
+        p1_response.accuracy_judge = eval_results["llm_judge_p1"]
+        p1_response.accuracy_bertscore = eval_results["bertscore_p1"]
+        
+        p2_response = PipelineResponse(pipeline_name="Basic RAG", **p2)
+        p2_response.accuracy_judge = eval_results["llm_judge_p2"]
+        p2_response.accuracy_bertscore = eval_results["bertscore_p2"]
+        
+        p3_response = PipelineResponse(pipeline_name="Multi-Agent", **p3)
+        p3_response.accuracy_judge = eval_results["llm_judge_p3"]
+        p3_response.accuracy_bertscore = eval_results["bertscore_p3"]
+        
+        print(f"\n{'='*70}")
+        print(f"✅ RETURNING RESULTS TO FRONTEND")
+        print(f"{'='*70}\n")
         
         return BatchResponse(
             query=request.query,
             results={
-                "llm_only": PipelineResponse(pipeline_name="LLM Only", **p1),
-                "basic_rag": PipelineResponse(pipeline_name="Basic RAG", **p2),
-                "tigergraph": PipelineResponse(pipeline_name="Multi-Agent TigerGraph", **p3)
+                "llm_only": p1_response,
+                "basic_rag": p2_response,
+                "tigergraph": p3_response
             },
             timestamp=datetime.utcnow().isoformat()
         )
+        
     except Exception as e:
+        print(f"❌ Error in /pipelines/all: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/health")
@@ -58,6 +121,6 @@ async def health_check():
         "pipelines": {
             "llm_only": "ready",
             "basic_rag": "ready",
-            "tigergraph": "ready"
+            "agentic": "ready"
         }
     }

@@ -1,8 +1,8 @@
-from pydantic import BaseModel, Field
-from typing import List, Optional
+from pydantic import BaseModel
+from typing import Dict, Any, Optional, List
 
 class QueryRequest(BaseModel):
-    query: str = Field(..., min_length=1, max_length=1000)
+    query: str
 
 class PipelineResponse(BaseModel):
     pipeline_name: str
@@ -11,13 +11,13 @@ class PipelineResponse(BaseModel):
     tokens_in: int
     tokens_out: int
     tokens_total: int
-    cost: float
     sources: List[str]
+    cost: float
     reasoning: str
-    status: str = "success"
-    error: Optional[str] = None
-
+    status: str
+    accuracy_judge: bool | None = None
+    accuracy_bertscore: float | None = None
 class BatchResponse(BaseModel):
     query: str
-    results: dict
+    results: Dict[str, PipelineResponse]
     timestamp: str

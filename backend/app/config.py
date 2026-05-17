@@ -3,44 +3,45 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# Get the backend directory
+BASE_DIR = Path(__file__).resolve().parent.parent  # ✅ Add .resolve()
+
+# Load .env from backend directory
+env_file = BASE_DIR / ".env"
+print(f"\nLoading .env from: {env_file}")
+print(f".env exists: {env_file.exists()}")
+
+load_dotenv(dotenv_path=env_file, override=True)
 
 class Settings:
-    # Groq
-    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY")
+    # Groq API
+    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
     GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
     
-    # Gemini
-    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY")
-    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
-    
-    # TigerGraph Savanah (NEW)
-    TIGERGRAPH_HOST: str = os.getenv("TIGERGRAPH_HOST")
-    TIGERGRAPH_GRAPH_NAME: str = os.getenv("TIGERGRAPH_GRAPH_NAME")
-    TIGERGRAPH_GSQL_SECRET: str = os.getenv("TIGERGRAPH_GSQL_SECRET")
-    TIGERGRAPH_REST_PORT: str = os.getenv("TIGERGRAPH_REST_PORT", "443")
-    TIGERGRAPH_GS_PORT: str = os.getenv("TIGERGRAPH_GS_PORT", "443")
+    # Hugging Face
+    HF_TOKEN: str = os.getenv("HF_TOKEN", "")
+    HF_JUDGE_MODEL: str = "meta-llama/Llama-3.1-8B-Instruct"
     
     # Server
     BACKEND_PORT: int = int(os.getenv("BACKEND_PORT", "8000"))
-    CORS_ORIGINS: list = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+    CORS_ORIGINS: list = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
     
     # Paths
-    BASE_DIR: Path = Path(__file__).parent.parent
+    BASE_DIR: Path = BASE_DIR
     DATASET_PATH: Path = BASE_DIR / "dataset"
+    EVALUATION_PATH: Path = BASE_DIR / "evaluation"
     
     @property
     def dataset_exists(self) -> bool:
         return self.DATASET_PATH.exists()
-    
-    def validate(self):
-        if not self.GROQ_API_KEY:
-            raise ValueError("❌ GROQ_API_KEY not set")
-        if not self.GEMINI_API_KEY:
-            raise ValueError("❌ GEMINI_API_KEY not set")
-        if not self.TIGERGRAPH_HOST:
-            raise ValueError("❌ TIGERGRAPH_HOST not set")
-        return True
 
 settings = Settings()
-settings.validate()
+
+# ✅ ADD THESE DEBUG LINES
+print(f"GROQ_API_KEY loaded: {bool(settings.GROQ_API_KEY)}")
+print(f"HF_TOKEN loaded: {bool(settings.HF_TOKEN)}")
+if settings.HF_TOKEN:
+    print(f"HF_TOKEN: {settings.HF_TOKEN[:20]}...")
+print(f"EVALUATION_PATH: {settings.EVALUATION_PATH}")
+print(f"EVALUATION_PATH exists: {settings.EVALUATION_PATH.exists()}")
+print()  # ✅ Empty line for spacing

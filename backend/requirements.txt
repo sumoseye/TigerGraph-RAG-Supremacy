@@ -1,3 +1,4 @@
+# backend/requirements.txt (UPDATED)
 fastapi
 uvicorn
 python-dotenv
@@ -12,8 +13,9 @@ sentence-transformers
 pymupdf
 requests
 pillow
-google-generativeai
-pytigergraph
 numpy<2.0
-mcp
-anthropic
+huggingface-hub
+evaluate
+bert-score
+torch
+transformers
