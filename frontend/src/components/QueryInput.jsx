@@ -1,7 +1,7 @@
 // frontend/src/components/QueryInput.jsx
 import React, { useState } from 'react';
 
-const QueryInput = ({ onSubmit, loading }) => {
+const QueryInput = ({ onSubmit, loading, hideOptions }) => {
   const [query, setQuery] = useState('');
 
   const sampleQueries = [
@@ -24,41 +24,46 @@ const QueryInput = ({ onSubmit, loading }) => {
   };
 
   return (
-    <div className="space-y-6 w-full">
-      {/* Main Search Bar - Centered, Rounded */}
-      <form onSubmit={handleSubmit} className="w-full">
-        <div className="search-wrapper">
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Enter your research question..."
-            className="search-input"
-            disabled={loading}
-          />
-          <button
-            type="submit"
-            disabled={loading || !query.trim()}
-            className="search-button"
-          >
-            {loading ? 'Running...' : 'Search'}
-          </button>
-        </div>
-      </form>
-
-      {/* Sample Queries - Rounded Black Boxes */}
-      <div className="flex flex-wrap gap-3 justify-center">
-        {sampleQueries.map((sample, idx) => (
-          <button
-            key={idx}
-            onClick={() => handleSample(sample)}
-            disabled={loading}
-            className="query-bubble"
-          >
-            {sample}
-          </button>
-        ))}
+    <div className="w-full">
+      {/* Main Search Bar - Centered, Rounded - BIGGER */}
+      <div className="pb-16">
+        <form onSubmit={handleSubmit} className="w-full flex justify-center">
+          <div className="search-wrapper-big">
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Enter your research question..."
+              className="search-input-big"
+              disabled={loading}
+            />
+            <button
+              type="submit"
+              disabled={loading || !query.trim()}
+              className="search-button-big"
+            >
+              {loading ? 'Running...' : 'Search'}
+            </button>
+          </div>
+        </form>
       </div>
+      
+
+      {/* Sample Queries - White Buttons with Black Shadow - Hidden when searching */}
+      {!hideOptions && (
+        <div className="flex flex-wrap gap-4 justify-center query-bubbles-container">
+          {sampleQueries.map((sample, idx) => (
+            <button
+              key={idx}
+              onClick={() => handleSample(sample)}
+              disabled={loading}
+              className="query-bubble-neo"
+            >
+              {sample}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
